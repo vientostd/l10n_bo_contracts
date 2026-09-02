@@ -1,9 +1,10 @@
 from odoo import fields, models, api
 from odoo.exceptions import UserError
 from datetime import timedelta
+from .sin_docx_mixin import SinDocxMixin
 
 
-class SinWarranty(models.Model):
+class SinWarranty(SinDocxMixin, models.Model):
     _name = 'sin.warranty'
     _description = 'Certificado de Garantía'
     _inherit = ['mail.thread', 'mail.activity.mixin']
@@ -103,6 +104,13 @@ class SinWarranty(models.Model):
         self.closing_html = self._render_tokens(self.template_id.closing_html or '', ctx)
         self.warranty_terms = self._render_tokens(self.template_id.warranty_terms or '', ctx)
         self.document_pdf_name = '%s.pdf' % (self.name or 'garantia')
+        # Si la plantilla trae un .docx, generar el PDF desde Word (prioridad)
+        if self.template_id.template_file:
+            docx_ctx = self._build_token_context(self.line_ids._format_lines_for_docx())
+            self.document_pdf = self._render_docx_pdf(
+                self.template_id.template_file, docx_ctx,
+                out_name=self.name or 'garantia',
+            )
 
     def _build_token_context(self, line_info):
         company = self.company_id
@@ -150,6 +158,28 @@ class SinWarranty(models.Model):
         self.state = 'signed'
 
     def action_open_report(self):
+        if self.template_id.template_file:
+            return self._open_generated_pdf()
+        return self.env.ref(
+            'l10n_bo_contracts.report_sin_warranty'
+        ).report_action(self)
+
+    def _open_generated_pdf(self):
+        """Abre el PDF generado (plantilla Word) como descarga/visualización."""
+        self.ensure_one()
+        if not self.document_pdf:
+            self.action_generate_document()
+        attachment = self.env['ir.attachment'].search([
+            ('res_model', '=', self._name),
+            ('res_id', '=', self.id),
+            ('res_field', '=', 'document_pdf'),
+        ], limit=1)
+        if attachment:
+            return {
+                'type': 'ir.actions.act_url',
+                'url': '/web/content/%s?download=true' % attachment.id,
+                'target': 'new',
+            }
         return self.env.ref(
             'l10n_bo_contracts.report_sin_warranty'
         ).report_action(self)
@@ -181,3 +211,12 @@ class SinWarrantyLine(models.Model):
             serial = ' (Serie: %s)' % line.serial_number if line.serial_number else ''
             lines.append('<li>%s%s — Cantidad: %s</li>' % (desc, serial, line.quantity))
         return ''.join(lines) or '—'
+
+    def _format_lines_for_docx(self):
+        """Versión texto plano (con saltos de línea) para plantillas Word."""
+        lines = []
+        for line in self:
+            desc = line.description or (line.product_id.name if line.product_id else '')
+            serial = ' (Serie: %s)' % line.serial_number if line.serial_number else ''
+            lines.append('%s%s — Cantidad: %s' % (desc, serial, line.quantity))
+        return '\n'.join(lines) or '—'

@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 from odoo import fields, models
 
 
@@ -14,6 +15,17 @@ class SinDocumentTemplate(models.Model):
     ], string='Tipo de documento', required=True, default='contract', tracking=True)
 
     active = fields.Boolean(string='Activo', default=True)
+
+    # Fuente del documento: plantilla .docx (Word) o campos HTML
+    template_file = fields.Binary(
+        string='Plantilla Word (.docx)',
+        attachment=True,
+        help='Si carga un archivo .docx, el documento se genera directamente desde '
+             'Word: se reemplazan los tokens {company.name}, {partner.name}, '
+             '{product_lines}, etc. y se convierte a PDF (requiere LibreOffice en el '
+             'servidor). Si lo deja vacío, se usan los campos HTML de esta plantilla.',
+    )
+    template_filename = fields.Char(string='Nombre del archivo Word')
 
     # Encabezado configurable
     company_id = fields.Many2one(

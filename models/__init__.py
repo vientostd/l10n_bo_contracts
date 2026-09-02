@@ -1,3 +1,4 @@
+from . import sin_docx_mixin
 from . import sin_document_template
 from . import sin_contract
 from . import sin_warranty

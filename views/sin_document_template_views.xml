@@ -41,15 +41,29 @@
                         </group>
                     </group>
 
+                    <group string="Documento fuente" col="2">
+                        <p class="text-muted" colspan="2">
+                            Puede cargar una plantilla Word (.docx) con tokens como
+                            <b>{company.name}</b>, <b>{partner.name}</b>, <b>{product_lines}</b>...
+                            El documento se generará desde Word (prioridad sobre los campos HTML
+                            de abajo) y se convertirá a PDF automáticamente.
+                        </p>
+                        <field name="template_file" filename="template_filename"
+                               widget="binary"
+                               accept=".docx,.doc"
+                               help="Plantilla Word con tokens. Vacío = usar los campos HTML."/>
+                        <field name="template_filename" invisible="1"/>
+                    </group>
+
                     <notebook>
                         <page string="Contenido">
-                            <group string="Introducción">
+                            <group string="Introducción" invisible="template_file">
                                 <field name="intro_html" placeholder="Texto de introducción con tokens como {company.name}, {partner.name}..."/>
                             </group>
-                            <group string="Cuerpo">
+                            <group string="Cuerpo" invisible="template_file">
                                 <field name="body_html" placeholder="Cláusulas del documento. Use {product_lines} para listar productos."/>
                             </group>
-                            <group string="Cierre">
+                            <group string="Cierre" invisible="template_file">
                                 <field name="closing_html" placeholder="Lugar y fecha de firma. Use {date}, {company.city}..."/>
                             </group>
                         </page>
