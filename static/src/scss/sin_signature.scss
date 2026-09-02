@@ -1,0 +1,58 @@
+.o_sin_signature_widget {
+    position: relative;
+    width: 100%;
+    max-width: 520px;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    background: #fff;
+    overflow: hidden;
+
+    .o_sin_signature_canvas {
+        display: block;
+        width: 100%;
+        height: 220px;
+        background: #fafbfc;
+        cursor: crosshair;
+        touch-action: none;
+    }
+
+    .o_sin_signature_placeholder {
+        position: absolute;
+        top: 16px;
+        left: 16px;
+        right: 16px;
+        text-align: center;
+        color: #aaa;
+        font-style: italic;
+        pointer-events: none;
+        user-select: none;
+    }
+
+    .o_sin_signature_toolbar {
+        display: flex;
+        justify-content: flex-end;
+        gap: 4px;
+        padding: 6px 8px;
+        border-top: 1px solid #eef0f2;
+        background: #f8f9fa;
+        flex-wrap: wrap;
+    }
+
+    .o_sin_signature_input_name {
+        flex: 1 1 100%;
+        margin-bottom: 4px;
+        border: 1px solid #ced4da;
+        border-radius: 4px;
+        padding: 6px 8px;
+        font-size: 13px;
+    }
+
+    &.o_sin_no_draw {
+        .o_sin_signature_canvas {
+            display: none;
+        }
+        .o_sin_signature_placeholder {
+            display: none;
+        }
+    }
+}
