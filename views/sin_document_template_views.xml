@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_sin_document_template_tree" model="ir.ui.view">
+        <field name="name">sin.document.template.tree</field>
+        <field name="model">sin.document.template</field>
+        <field name="arch" type="xml">
+            <list string="Plantillas de documentos">
+                <field name="name"/>
+                <field name="doc_type"/>
+                <field name="company_id" optional="show"/>
+                <field name="active" invisible="1"/>
+                <field name="warranty_days" optional="show"/>
+                <field name="require_signature"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_sin_document_template_form" model="ir.ui.view">
+        <field name="name">sin.document.template.form</field>
+        <field name="model">sin.document.template</field>
+        <field name="arch" type="xml">
+            <form string="Plantilla de documento">
+                <sheet>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name" placeholder="Nombre de la plantilla"/>
+                        </h1>
+                        <field name="doc_type" readonly="1"/>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="company_id"/>
+                            <field name="active"/>
+                        </group>
+                        <group>
+                            <field name="title" placeholder="Título del documento, ej. CERTIFICADO DE GARANTÍA"/>
+                            <group col="2" invisible="doc_type != 'warranty'">
+                                <field name="warranty_days"/>
+                                <field name="warranty_terms" placeholder="Términos de la garantía"/>
+                            </group>
+                        </group>
+                    </group>
+
+                    <notebook>
+                        <page string="Contenido">
+                            <group string="Introducción">
+                                <field name="intro_html" placeholder="Texto de introducción con tokens como {company.name}, {partner.name}..."/>
+                            </group>
+                            <group string="Cuerpo">
+                                <field name="body_html" placeholder="Cláusulas del documento. Use {product_lines} para listar productos."/>
+                            </group>
+                            <group string="Cierre">
+                                <field name="closing_html" placeholder="Lugar y fecha de firma. Use {date}, {company.city}..."/>
+                            </group>
+                        </page>
+
+                        <page string="Firma" invisible="not require_signature">
+                            <group string="Configuración de firma">
+                                <field name="require_signature"/>
+                                <field name="sign_company"/>
+                                <field name="sign_client"/>
+                                <field name="sign_instruction"/>
+                            </group>
+                        </page>
+                    </notebook>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_sin_document_template" model="ir.actions.act_window">
+        <field name="name">Plantillas de documentos</field>
+        <field name="res_model">sin.document.template</field>
+        <field name="view_mode">list,form</field>
+    </record>
+</odoo>

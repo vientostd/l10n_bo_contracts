@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_sin_contract_tree" model="ir.ui.view">
+        <field name="name">sin.contract.tree</field>
+        <field name="model">sin.contract</field>
+        <field name="arch" type="xml">
+            <list string="Contratos" multi_edit="1">
+                <field name="name"/>
+                <field name="date"/>
+                <field name="partner_id"/>
+                <field name="company_id" optional="hide"/>
+                <field name="state" widget="badge" decoration-success="state == 'signed'"
+                       decoration-info="state == 'generated' or state == 'sent'"
+                       decoration-muted="state in ('draft', 'cancelled')"/>
+                <field name="template_id" optional="show"/>
+                <field name="require_signature" optional="hide"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_sin_contract_form" model="ir.ui.view">
+        <field name="name">sin.contract.form</field>
+        <field name="model">sin.contract</field>
+        <field name="arch" type="xml">
+            <form string="Contrato">
+                <header>
+                    <button name="action_generate_document" type="object"
+                            string="Generar documento"
+                            class="btn-primary"
+                            invisible="state != 'draft'"/>
+                    <button name="action_open_report" type="object"
+                            string="Imprimir PDF"
+                            class="btn-primary"
+                            invisible="state in ('draft', 'cancelled')"/>
+                    <button name="action_send" type="object"
+                            string="Marcar como enviado"
+                            invisible="state != 'generated'"/>
+                    <button name="action_draft" type="object"
+                            string="Volver a borrador"
+                            invisible="state not in ('generated', 'sent', 'cancelled')"/>
+                    <button name="action_cancel" type="object"
+                            string="Cancelar"
+                            invisible="state == 'cancelled'"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,generated,sent,signed"/>
+                </header>
+                <sheet>
+                    <field name="name" class="o_field_char_offset"/>
+                    <div class="oe_title">
+                        <h1><field name="document_title" placeholder="Título del documento"/></h1>
+                    </div>
+                    <group>
+                        <group>
+                            <field name="date"/>
+                            <field name="company_id"/>
+                            <field name="partner_id" options="{'no_create_edit': True}"/>
+                            <field name="partner_document"/>
+                            <field name="partner_address"/>
+                        </group>
+                        <group>
+                            <field name="template_id"/>
+                            <field name="sale_order_id"/>
+                            <field name="pos_order_id"/>
+                            <field name="require_signature"/>
+                            <field name="note"/>
+                        </group>
+                    </group>
+
+                    <notebook>
+                        <page string="Documento">
+                            <div class="o_sin_document_preview"
+                                 style="border:1px solid #dee2e6; padding:16px; font-size:13px;">
+                                <h2 style="text-align:center;"><field name="document_title"/></h2>
+                                <hr/>
+                                <field name="intro_html" readonly="1"/>
+                                <field name="body_html" readonly="1"/>
+                                <field name="closing_html" readonly="1"/>
+                            </div>
+                        </page>
+
+                        <page string="Productos">
+                            <field name="line_ids">
+                                <list editable="bottom">
+                                    <field name="sequence" widget="handle"/>
+                                    <field name="product_id"/>
+                                    <field name="description"/>
+                                    <field name="quantity"/>
+                                    <field name="price_unit"/>
+                                    <field name="price_subtotal"/>
+                                </list>
+                            </field>
+                        </page>
+
+                        <page string="Firmas" name="signatures"
+                              invisible="not require_signature or state not in ('generated','sent','signed')">
+                            <group string="Firma del cliente">
+                                <field name="client_signature" widget="sin_signature"
+                                       readonly="state in ('draft','signed','cancelled')"/>
+                                <field name="client_signature_name"/>
+                                <field name="client_signature_date"/>
+                                <button name="action_sign_client" type="object"
+                                        string="Registrar firma del cliente"
+                                        class="btn-primary"
+                                        invisible="state != 'sent'"
+                                        confirm="¿Confirmar la firma del cliente?"/>
+                            </group>
+                            <group string="Firma de la empresa" invisible="not sign_company">
+                                <field name="company_signature" widget="sin_signature"
+                                       readonly="state in ('draft','signed','cancelled')"/>
+                                <field name="company_signature_name"/>
+                                <field name="company_signature_date"/>
+                                <button name="action_sign_company" type="object"
+                                        string="Registrar firma de la empresa"
+                                        class="btn-secondary"
+                                        invisible="state != 'sent'"
+                                        confirm="¿Confirmar la firma de la empresa?"/>
+                            </group>
+                        </page>
+
+                        <page string="PDF">
+                            <group>
+                                <field name="document_pdf_name"/>
+                                <field name="document_pdf" filename="document_pdf_name" readonly="1"/>
+                            </group>
+                        </page>
+                    </notebook>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_sin_contract" model="ir.actions.act_window">
+        <field name="name">Contratos</field>
+        <field name="res_model">sin.contract</field>
+        <field name="view_mode">list,form</field>
+        <field name="domain">[]</field>
+        <field name="context">{'search_default_group_by_state': 1}</field>
+    </record>
+
+    <record id="view_sin_contract_search" model="ir.ui.view">
+        <field name="name">sin.contract.search</field>
+        <field name="model">sin.contract</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name"/>
+                <field name="partner_id"/>
+                <field name="template_id"/>
+                <field name="state"/>
+                <filter name="signed" string="Firmados" domain="[('state','=','signed')]"/>
+                <filter name="pending" string="Pendientes de firma" domain="[('state','in',['generated','sent'])]"/>
+                <group>
+                    <filter name="group_by_state" string="Estado" context="{'group_by':'state'}"/>
+                    <filter name="group_by_partner" string="Cliente" context="{'group_by':'partner_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+</odoo>

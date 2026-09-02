@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Menú principal -->
+    <menuitem id="menu_sin_contracts_root"
+              name="Contratos y Garantías"
+              sequence="50"
+              web_icon="l10n_bo_contracts,static/description/icon.png"
+              groups="base.group_user"/>
+
+    <!-- Contratos -->
+    <menuitem id="menu_sin_contracts"
+              name="Contratos"
+              parent="menu_sin_contracts_root"
+              sequence="10"
+              action="action_sin_contract"
+              groups="base.group_user"/>
+
+    <!-- Certificados de Garantía -->
+    <menuitem id="menu_sin_warranties"
+              name="Certificados de Garantía"
+              parent="menu_sin_contracts_root"
+              sequence="20"
+              action="action_sin_warranty"
+              groups="base.group_user"/>
+
+    <!-- Configuración -->
+    <menuitem id="menu_sin_contracts_config"
+              name="Configuración"
+              parent="menu_sin_contracts_root"
+              sequence="90"
+              groups="base.group_system"/>
+
+    <menuitem id="menu_sin_document_templates"
+              name="Plantillas de documentos"
+              parent="menu_sin_contracts_config"
+              sequence="10"
+              action="action_sin_document_template"
+              groups="base.group_system"/>
+</odoo>
