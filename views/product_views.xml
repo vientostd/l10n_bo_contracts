@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_product_template_contracts_form" model="ir.ui.view">
+        <field name="name">product.template.contracts.form</field>
+        <field name="model">product.template</field>
+        <field name="inherit_id" ref="product.product_template_form_view"/>
+        <field name="arch" type="xml">
+            <xpath expr="//notebook" position="inside">
+                <page string="Contrato y Garantía" name="sin_contracts">
+                    <group string="Contrato" name="sin_contract_group">
+                        <group>
+                            <field name="sin_has_contract"/>
+                            <field name="sin_contract_template_id"
+                                   invisible="not sin_has_contract"/>
+                        </group>
+                    </group>
+                    <group string="Certificado de Garantía" name="sin_warranty_group">
+                        <group>
+                            <field name="sin_has_warranty"/>
+                            <field name="sin_warranty_template_id"
+                                   invisible="not sin_has_warranty"/>
+                            <field name="sin_warranty_days" invisible="not sin_has_warranty"/>
+                            <field name="sin_warranty_serial" invisible="not sin_has_warranty"/>
+                        </group>
+                    </group>
+                </page>
+            </xpath>
+        </field>
+    </record>
+</odoo>
