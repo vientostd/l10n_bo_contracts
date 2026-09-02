@@ -1,0 +1,7 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_sin_contract_user,sin.contract.user,model_sin_contract,base.group_user,1,1,1,0
+access_sin_contract_line_user,sin.contract.line.user,model_sin_contract_line,base.group_user,1,1,1,0
+access_sin_warranty_user,sin.warranty.user,model_sin_warranty,base.group_user,1,1,1,0
+access_sin_warranty_line_user,sin.warranty.line.user,model_sin_warranty_line,base.group_user,1,1,1,0
+access_sin_document_template_user,sin.document.template.user,model_sin_document_template,base.group_user,1,0,0,0
+access_sin_document_template_manager,sin.document.template.manager,model_sin_document_template,base.group_system,1,1,1,1
