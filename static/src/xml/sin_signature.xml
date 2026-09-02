@@ -1,42 +1,40 @@
 <?xml version="1.0" encoding="utf-8"?>
-<odoo>
-    <templates xml:space="preserve">
-        <t t-name="l10n_bo_contracts.SinSignatureWidget" owl="1">
-            <div class="o_sin_signature_widget" t-att-class="state.mode === 'upload' ? 'o_sin_no_draw' : ''">
-                <div t-if="state.mode === 'draw'" class="o_sin_signature_placeholder" t-out="signInstruction || 'Firme aquí'"></div>
-                <canvas class="o_sin_signature_canvas"
-                        t-ref="canvas"
-                        t-on-mousedown="onPointerDown"
-                        t-on-mousemove.prevent="onPointerMove"
-                        t-on-mouseup="onPointerUp"
-                        t-on-mouseleave="onPointerUp"
-                        t-on-touchstart.prevent="onPointerDown"
-                        t-on-touchmove.prevent="onPointerMove"
-                        t-on-touchend.prevent="onPointerUp"></canvas>
+<templates xml:space="preserve">
+    <t t-name="l10n_bo_contracts.SinSignatureWidget" owl="1">
+        <div class="o_sin_signature_widget" t-att-class="state.mode === 'upload' ? 'o_sin_no_draw' : ''">
+            <div t-if="state.mode === 'draw'" class="o_sin_signature_placeholder" t-out="signInstruction || 'Firme aqu??'"></div>
+            <canvas class="o_sin_signature_canvas"
+                    t-ref="canvas"
+                    t-on-mousedown="onPointerDown"
+                    t-on-mousemove.prevent="onPointerMove"
+                    t-on-mouseup="onPointerUp"
+                    t-on-mouseleave="onPointerUp"
+                    t-on-touchstart.prevent="onPointerDown"
+                    t-on-touchmove.prevent="onPointerMove"
+                    t-on-touchend.prevent="onPointerUp"></canvas>
 
-                <div class="o_sin_signature_toolbar">
-                    <input class="o_sin_signature_input_name"
-                           type="text"
-                           t-model="state.name"
-                           t-on-change="onNameChange"
-                           placeholder="Nombre del firmante"/>
-                    <button class="btn btn-sm btn-light"
-                            t-attf-class="btn #{state.mode === 'draw' ? 'btn-primary' : 'btn-light'}"
-                            t-on-click="switchMode('draw')">Dibujar</button>
-                    <button class="btn btn-sm btn-light" t-on-click="switchMode('upload')">Subir archivo</button>
-                    <label class="btn btn-sm btn-light" t-if="state.mode === 'upload'">
-                        <input type="file" accept="image/*" t-on-change="onFileChange" style="display:none;"/>
-                        Elegir imagen
-                    </label>
-                    <button class="btn btn-sm btn-outline-secondary" t-on-click="clear">Limpiar</button>
-                </div>
-
-                <div t-if="state.mode === 'typed' &amp;&amp; state.data"
-                     class="o_sin_signature_preview"
-                     style="padding:12px; text-align:center;">
-                    <img t-att-src="'data:image/png;base64,' + state.data" style="max-height:120px;"/>
-                </div>
+            <div class="o_sin_signature_toolbar">
+                <input class="o_sin_signature_input_name"
+                       type="text"
+                       t-model="state.name"
+                       t-on-change="onNameChange"
+                       placeholder="Nombre del firmante"/>
+                <button class="btn btn-sm btn-light"
+                        t-attf-class="btn #{state.mode === 'draw' ? 'btn-primary' : 'btn-light'}"
+                        t-on-click="switchMode('draw')">Dibujar</button>
+                <button class="btn btn-sm btn-light" t-on-click="switchMode('upload')">Subir archivo</button>
+                <label class="btn btn-sm btn-light" t-if="state.mode === 'upload'">
+                    <input type="file" accept="image/*" t-on-change="onFileChange" style="display:none;"/>
+                    Elegir imagen
+                </label>
+                <button class="btn btn-sm btn-outline-secondary" t-on-click="clear">Limpiar</button>
             </div>
-        </t>
-    </templates>
-</odoo>
+
+            <div t-if="state.mode === 'typed' &amp;&amp; state.data"
+                 class="o_sin_signature_preview"
+                 style="padding:12px; text-align:center;">
+                <img t-att-src="'data:image/png;base64,' + state.data" style="max-height:120px;"/>
+            </div>
+        </div>
+    </t>
+</templates>
