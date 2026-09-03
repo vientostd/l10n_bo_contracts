@@ -1,5 +1,7 @@
 from odoo import fields, models, _
-from odoo.exceptions import UserError
+
+import logging
+_logger = logging.getLogger(__name__)
 
 
 class PosOrder(models.Model):
@@ -12,23 +14,29 @@ class PosOrder(models.Model):
         'sin.warranty', 'pos_order_id', string='Certificados de garantía',
     )
 
+    def _sin_resolve_contract_template(self, product):
+        company = self.company_id or self.env.company
+        template = product.sin_contract_template_id
+        if not template and company.default_contract_template_id.doc_type == 'contract':
+            template = company.default_contract_template_id
+        return template
+
+    def _sin_resolve_warranty_template(self, product):
+        company = self.company_id or self.env.company
+        template = product.sin_warranty_template_id
+        if not template and company.default_warranty_template_id.doc_type == 'warranty':
+            template = company.default_warranty_template_id
+        return template
+
     def _sin_prepare_contract_vals(self, product, line):
         company = self.company_id or self.env.company
-        template = product.sin_contract_template_id or (
-            company.default_contract_template_id
-            if company.default_contract_template_id and \
-                company.default_contract_template_id.doc_type == 'contract'
-            else False
-        )
+        template = self._sin_resolve_contract_template(product)
         if not template:
-            raise UserError(
-                _('El producto "%s" requiere contrato pero no tiene plantilla '
-                  'de contrato asignada.') % product.display_name
-            )
+            return None
         desc = line.full_product_name if hasattr(line, 'full_product_name') else product.name
         return {
             'partner_id': self.partner_id.id if self.partner_id else False,
-            'company_id': self.company_id.id,
+            'company_id': company.id,
             'pos_order_id': self.id,
             'date': self.date_order and self.date_order.date() or False,
             'template_id': template.id,
@@ -42,24 +50,16 @@ class PosOrder(models.Model):
 
     def _sin_prepare_warranty_vals(self, product, line):
         company = self.company_id or self.env.company
-        template = product.sin_warranty_template_id or (
-            company.default_warranty_template_id
-            if company.default_warranty_template_id and \
-                company.default_warranty_template_id.doc_type == 'warranty'
-            else False
-        )
-        if not template and not product.sin_warranty_template_id:
-            raise UserError(
-                _('El producto "%s" requiere certificado de garantía pero no tiene '
-                  'plantilla de garantía asignada.') % product.display_name
-            )
+        template = self._sin_resolve_warranty_template(product)
+        if not template:
+            return None
         desc = line.full_product_name if hasattr(line, 'full_product_name') else product.name
         return {
             'partner_id': self.partner_id.id if self.partner_id else False,
-            'company_id': self.company_id.id,
+            'company_id': company.id,
             'pos_order_id': self.id,
             'date': self.date_order and self.date_order.date() or False,
-            'template_id': template.id if template else False,
+            'template_id': template.id,
             'line_ids': [(0, 0, {
                 'product_id': product.id,
                 'description': desc,
@@ -67,6 +67,13 @@ class PosOrder(models.Model):
                 'price_unit': line.price_unit,
             })],
         }
+
+    def _sin_missing_template_hint(self, product, doc_type):
+        label = 'contrato' if doc_type == 'contract' else 'certificado de garantía'
+        return _(
+            'El producto "%s" requiere %s pero no tiene plantilla asignada. '
+            'El documento no se generó automáticamente.'
+        ) % (product.display_name, label)
 
     def _sin_action_generate_documents(self):
         """Genera contratos y/o certificados de garantía a partir del pedido POS.
@@ -94,10 +101,24 @@ class PosOrder(models.Model):
                 line = info['line']
                 if product.sin_has_contract and company.auto_generate_contracts:
                     vals = order._sin_prepare_contract_vals(product, line)
+                    if vals is None:
+                        _logger.warning(order._sin_missing_template_hint(product, 'contract'))
+                        order.message_post(
+                            body=order._sin_missing_template_hint(product, 'contract'),
+                            subtype_xmlid='mail.mt_note',
+                        )
+                        continue
                     contract = order.env['sin.contract'].create(vals)
                     contract.action_generate_document()
                 if product.sin_has_warranty and company.auto_generate_warranties:
                     vals = order._sin_prepare_warranty_vals(product, line)
+                    if vals is None:
+                        _logger.warning(order._sin_missing_template_hint(product, 'warranty'))
+                        order.message_post(
+                            body=order._sin_missing_template_hint(product, 'warranty'),
+                            subtype_xmlid='mail.mt_note',
+                        )
+                        continue
                     warranty = order.env['sin.warranty'].create(vals)
                     warranty.action_generate_document()
 

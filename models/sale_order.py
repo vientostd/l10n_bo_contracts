@@ -1,5 +1,8 @@
+import logging
+
 from odoo import api, fields, models, _
-from odoo.exceptions import UserError
+
+_logger = logging.getLogger(__name__)
 
 
 class SaleOrder(models.Model):
@@ -12,18 +15,28 @@ class SaleOrder(models.Model):
         'sin.warranty', 'sale_order_id', string='Certificados de garantía',
     )
 
-    def _sin_prepare_contract_vals(self, product, line):
+    def _sin_resolve_contract_template(self, product):
+        """Resuelve la plantilla de contrato (producto o por defecto de empresa).
+        Devuelve la plantilla o un recordset vacío si no hay ninguna."""
         company = self.env.company
-        template = product.sin_contract_template_id or (
-            company.default_contract_template_id
-            if company.default_contract_template_id.doc_type == 'contract'
-            else False
-        )
+        template = product.sin_contract_template_id
+        if not template and company.default_contract_template_id.doc_type == 'contract':
+            template = company.default_contract_template_id
+        return template
+
+    def _sin_resolve_warranty_template(self, product):
+        """Resuelve la plantilla de certificado de garantía (producto o por
+        defecto de empresa). Devuelve la plantilla o un recordset vacío."""
+        company = self.env.company
+        template = product.sin_warranty_template_id
+        if not template and company.default_warranty_template_id.doc_type == 'warranty':
+            template = company.default_warranty_template_id
+        return template
+
+    def _sin_prepare_contract_vals(self, product, line):
+        template = self._sin_resolve_contract_template(product)
         if not template:
-            raise UserError(
-                _('El producto "%s" requiere contrato pero no tiene plantilla '
-                  'de contrato asignada.') % product.display_name
-            )
+            return None
         return {
             'partner_id': self.partner_id.id,
             'company_id': self.company_id.id,
@@ -39,35 +52,40 @@ class SaleOrder(models.Model):
         }
 
     def _sin_prepare_warranty_vals(self, product, line):
-        company = self.env.company
-        template = product.sin_warranty_template_id or (
-            company.default_warranty_template_id
-            if company.default_warranty_template_id and \
-                company.default_warranty_template_id.doc_type == 'warranty'
-            else False
-        )
-        if not template and not product.sin_warranty_template_id:
-            raise UserError(
-                _('El producto "%s" requiere certificado de garantía pero no tiene '
-                  'plantilla de garantía asignada.') % product.display_name
-            )
+        template = self._sin_resolve_warranty_template(product)
+        if not template:
+            return None
+        qty = line.product_uom_qty if hasattr(line, 'product_uom_qty') else getattr(line, 'qty', 1.0)
         return {
             'partner_id': self.partner_id.id,
             'company_id': self.company_id.id,
             'sale_order_id': self.id,
             'date': self.date_order and self.date_order.date() or False,
-            'template_id': template.id if template else False,
+            'template_id': template.id,
             'line_ids': [(0, 0, {
                 'product_id': product.id,
                 'description': line.name or product.name,
-                'quantity': line.product_uom_qty,
+                'quantity': qty,
                 'price_unit': line.price_unit,
             })],
         }
 
+    def _sin_missing_template_hint(self, product, doc_type):
+        """Devuelve el texto de aviso (producto sin plantilla) para dejar una
+        nota en la orden sin abortar la venta."""
+        label = 'contrato' if doc_type == 'contract' else 'certificado de garantía'
+        return _(
+            'El producto "%s" requiere %s pero no tiene plantilla asignada. '
+            'El documento no se generó automáticamente.'
+        ) % (product.display_name, label)
+
     def _sin_action_generate_documents(self):
         """Genera contratos y/o certificados de garantía a partir de las líneas
-        despedidas de la orden de venta. Se invoca al confirmar la venta."""
+        de la orden de venta. Se invoca al confirmar la venta.
+
+        Si un producto requiere un documento pero no se encuentra plantilla, NO
+        se aborta la venta: se omite la generación y se deja una nota en la orden.
+        """
         company = self.company_id or self.env.company
         product_list = {}
         for line in self.order_line:
@@ -88,10 +106,24 @@ class SaleOrder(models.Model):
             line = info['line']
             if product.sin_has_contract and company.auto_generate_contracts:
                 vals = self._sin_prepare_contract_vals(product, line)
+                if vals is None:
+                    _logger.warning(self._sin_missing_template_hint(product, 'contract'))
+                    self.message_post(
+                        body=self._sin_missing_template_hint(product, 'contract'),
+                        subtype_xmlid='mail.mt_note',
+                    )
+                    continue
                 contract = self.env['sin.contract'].create(vals)
                 contract.action_generate_document()
             if product.sin_has_warranty and company.auto_generate_warranties:
                 vals = self._sin_prepare_warranty_vals(product, line)
+                if vals is None:
+                    _logger.warning(self._sin_missing_template_hint(product, 'warranty'))
+                    self.message_post(
+                        body=self._sin_missing_template_hint(product, 'warranty'),
+                        subtype_xmlid='mail.mt_note',
+                    )
+                    continue
                 warranty = self.env['sin.warranty'].create(vals)
                 warranty.action_generate_document()
 

@@ -1,4 +1,5 @@
-from odoo import fields, models, api
+from markupsafe import escape
+from odoo import fields, models, api, _
 from odoo.exceptions import UserError
 from datetime import timedelta
 from .sin_docx_mixin import SinDocxMixin
@@ -89,13 +90,41 @@ class SinWarranty(SinDocxMixin, models.Model):
             rec._generate_document_content()
             rec.state = 'generated'
 
+    def _get_effective_warranty_days(self):
+        """Devuelve los días de garantía efectivos: los del producto (primera
+        línea) si están definidos, si no los de la plantilla."""
+        product = False
+        for line in self.line_ids:
+            product = line.product_id
+            if product:
+                break
+        if product and product.product_tmpl_id.sin_warranty_days:
+            return product.product_tmpl_id.sin_warranty_days
+        return self.template_id.warranty_days or 0
+
     def _generate_document_content(self):
         self.ensure_one()
         if not self.template_id:
             raise UserError('Debe seleccionar una plantilla para el certificado de garantía.')
-        days = self.template_id.warranty_days or 0
+        days = self._get_effective_warranty_days()
         if days and self.date:
             self.date_expiry = self.date + timedelta(days=days)
+        # Si algún producto requiere nº de serie, validarlo (solo para generación
+        # manual del documento; el flujo automático de venta lo omite si falta).
+        need_serial = any(
+            line.product_id.product_tmpl_id.sin_warranty_serial
+            for line in self.line_ids
+        )
+        if need_serial:
+            missing = [
+                line.description or line.product_id.name
+                for line in self.line_ids if not line.serial_number
+            ]
+            if missing:
+                raise UserError(
+                    _('El certificado de garantía requiere número de serie para: %s') %
+                    ', '.join(missing)
+                )
         line_info = self.line_ids._format_lines_for_template()
         ctx = self._build_token_context(line_info)
         self.document_title = self.template_id.title or self.template_id.doc_type
@@ -133,7 +162,7 @@ class SinWarranty(SinDocxMixin, models.Model):
             'product_lines': line_info or '',
             'date': self.date.strftime('%d/%m/%Y') if self.date else '',
             'date_expiry': self.date_expiry.strftime('%d/%m/%Y') if self.date_expiry else '-',
-            'warranty.days': self.template_id.warranty_days or 0,
+            'warranty.days': self._get_effective_warranty_days(),
             'warranty.name': self.name or '',
         }
 
@@ -168,7 +197,8 @@ class SinWarranty(SinDocxMixin, models.Model):
         """Abre el PDF generado (plantilla Word) como descarga/visualización."""
         self.ensure_one()
         if not self.document_pdf:
-            self.action_generate_document()
+            # Regenera el contenido sin cambiar el estado (no usar action_generate_document).
+            self._generate_document_content()
         attachment = self.env['ir.attachment'].search([
             ('res_model', '=', self._name),
             ('res_id', '=', self.id),
@@ -207,8 +237,8 @@ class SinWarrantyLine(models.Model):
     def _format_lines_for_template(self):
         lines = []
         for line in self:
-            desc = line.description or (line.product_id.name if line.product_id else '')
-            serial = ' (Serie: %s)' % line.serial_number if line.serial_number else ''
+            desc = escape(line.description or (line.product_id.name if line.product_id else ''))
+            serial = escape(' (Serie: %s)' % line.serial_number) if line.serial_number else ''
             lines.append('<li>%s%s — Cantidad: %s</li>' % (desc, serial, line.quantity))
         return ''.join(lines) or '—'
 

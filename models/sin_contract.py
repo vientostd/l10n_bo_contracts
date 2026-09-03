@@ -1,3 +1,4 @@
+from markupsafe import escape
 from odoo import fields, models, api
 from odoo.exceptions import UserError
 from .sin_docx_mixin import SinDocxMixin
@@ -225,7 +226,8 @@ class SinContract(SinDocxMixin, models.Model):
         """Abre el PDF generado (plantilla Word) como descarga/visualización."""
         self.ensure_one()
         if not self.document_pdf:
-            self.action_generate_document()
+            # Regenera el contenido sin cambiar el estado (no usar action_generate_document).
+            self._generate_document_content()
         attachment = self.env['ir.attachment'].search([
             ('res_model', '=', self._name),
             ('res_id', '=', self.id),
@@ -268,7 +270,7 @@ class SinContractLine(models.Model):
     def _format_lines_for_template(self):
         lines = []
         for line in self:
-            desc = line.description or (line.product_id.name if line.product_id else '')
+            desc = escape(line.description or (line.product_id.name if line.product_id else ''))
             lines.append(
                 '<li>%s — Cantidad: %s — Precio: %s</li>' % (
                     desc,
