@@ -75,6 +75,12 @@ class PosOrder(models.Model):
             'El documento no se generó automáticamente.'
         ) % (product.display_name, label)
 
+    def _sin_notify_missing_template(self, product, doc_type):
+        """Deja la nota de plantilla faltante sin abortar la venta."""
+        hint = self._sin_missing_template_hint(product, doc_type)
+        _logger.warning(hint)
+        self.message_post(body=hint, subtype_xmlid='mail.mt_note')
+
     def _sin_action_generate_documents(self):
         """Genera contratos y/o certificados de garantía a partir del pedido POS.
         Solo se invoca cuando el pedido está pagado (equivalente a venta confirmada)."""
@@ -102,25 +108,17 @@ class PosOrder(models.Model):
                 if product.sin_has_contract and company.auto_generate_contracts:
                     vals = order._sin_prepare_contract_vals(product, line)
                     if vals is None:
-                        _logger.warning(order._sin_missing_template_hint(product, 'contract'))
-                        order.message_post(
-                            body=order._sin_missing_template_hint(product, 'contract'),
-                            subtype_xmlid='mail.mt_note',
-                        )
-                        continue
-                    contract = order.env['sin.contract'].create(vals)
-                    contract.action_generate_document()
+                        order._sin_notify_missing_template(product, 'contract')
+                    else:
+                        contract = order.env['sin.contract'].create(vals)
+                        contract.action_generate_document()
                 if product.sin_has_warranty and company.auto_generate_warranties:
                     vals = order._sin_prepare_warranty_vals(product, line)
                     if vals is None:
-                        _logger.warning(order._sin_missing_template_hint(product, 'warranty'))
-                        order.message_post(
-                            body=order._sin_missing_template_hint(product, 'warranty'),
-                            subtype_xmlid='mail.mt_note',
-                        )
-                        continue
-                    warranty = order.env['sin.warranty'].create(vals)
-                    warranty.action_generate_document()
+                        order._sin_notify_missing_template(product, 'warranty')
+                    else:
+                        warranty = order.env['sin.warranty'].create(vals)
+                        warranty.action_generate_document(skip_serial=True)
 
     def action_pos_order_paid(self):
         """Cuando el pedido POS queda pagado (venta concretada), se generan los

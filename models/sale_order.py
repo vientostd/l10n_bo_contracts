@@ -79,6 +79,12 @@ class SaleOrder(models.Model):
             'El documento no se generó automáticamente.'
         ) % (product.display_name, label)
 
+    def _sin_notify_missing_template(self, product, doc_type):
+        """Deja la nota de plantilla faltante sin abortar la venta."""
+        hint = self._sin_missing_template_hint(product, doc_type)
+        _logger.warning(hint)
+        self.message_post(body=hint, subtype_xmlid='mail.mt_note')
+
     def _sin_action_generate_documents(self):
         """Genera contratos y/o certificados de garantía a partir de las líneas
         de la orden de venta. Se invoca al confirmar la venta.
@@ -107,25 +113,17 @@ class SaleOrder(models.Model):
             if product.sin_has_contract and company.auto_generate_contracts:
                 vals = self._sin_prepare_contract_vals(product, line)
                 if vals is None:
-                    _logger.warning(self._sin_missing_template_hint(product, 'contract'))
-                    self.message_post(
-                        body=self._sin_missing_template_hint(product, 'contract'),
-                        subtype_xmlid='mail.mt_note',
-                    )
-                    continue
-                contract = self.env['sin.contract'].create(vals)
-                contract.action_generate_document()
+                    self._sin_notify_missing_template(product, 'contract')
+                else:
+                    contract = self.env['sin.contract'].create(vals)
+                    contract.action_generate_document()
             if product.sin_has_warranty and company.auto_generate_warranties:
                 vals = self._sin_prepare_warranty_vals(product, line)
                 if vals is None:
-                    _logger.warning(self._sin_missing_template_hint(product, 'warranty'))
-                    self.message_post(
-                        body=self._sin_missing_template_hint(product, 'warranty'),
-                        subtype_xmlid='mail.mt_note',
-                    )
-                    continue
-                warranty = self.env['sin.warranty'].create(vals)
-                warranty.action_generate_document()
+                    self._sin_notify_missing_template(product, 'warranty')
+                else:
+                    warranty = self.env['sin.warranty'].create(vals)
+                    warranty.action_generate_document(skip_serial=True)
 
     def action_confirm(self):
         res = super().action_confirm()

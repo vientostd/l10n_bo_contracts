@@ -73,6 +73,20 @@ class SinWarranty(SinDocxMixin, models.Model):
 
     note = fields.Text(string='Notas')
 
+    # Datos técnicos del equipo amparado (paquete tecnológico)
+    equipment_brand = fields.Char(string='Marca del equipo')
+    equipment_model = fields.Char(string='Modelo del equipo')
+    equipment_serial = fields.Char(string='Nº de serie del equipo')
+    equipment_processor = fields.Char(string='Procesador')
+    equipment_ram = fields.Char(string='Memoria RAM (GB)')
+    equipment_storage = fields.Char(string='Almacenamiento (GB / tipo)')
+    equipment_os_version = fields.Char(string='Versión del sistema operativo')
+    equipment_omv_version = fields.Char(string='Versión OpenMediaVault')
+    equipment_odoo_edition = fields.Selection([
+        ('community', 'Community'),
+        ('enterprise', 'Enterprise'),
+    ], string='Edición de Odoo')
+
     document_pdf = fields.Binary(
         string='PDF del certificado', attachment=True, readonly=True,
     )
@@ -85,9 +99,9 @@ class SinWarranty(SinDocxMixin, models.Model):
             sin_doc = getattr(partner, 'sin_document_number', '') or ''
             rec.partner_document = partner.vat or sin_doc or ''
 
-    def action_generate_document(self):
+    def action_generate_document(self, skip_serial=False):
         for rec in self:
-            rec._generate_document_content()
+            rec._generate_document_content(skip_serial=skip_serial)
             rec.state = 'generated'
 
     def _get_effective_warranty_days(self):
@@ -102,7 +116,7 @@ class SinWarranty(SinDocxMixin, models.Model):
             return product.product_tmpl_id.sin_warranty_days
         return self.template_id.warranty_days or 0
 
-    def _generate_document_content(self):
+    def _generate_document_content(self, skip_serial=False):
         self.ensure_one()
         if not self.template_id:
             raise UserError('Debe seleccionar una plantilla para el certificado de garantía.')
@@ -115,7 +129,7 @@ class SinWarranty(SinDocxMixin, models.Model):
             line.product_id.product_tmpl_id.sin_warranty_serial
             for line in self.line_ids
         )
-        if need_serial:
+        if need_serial and not skip_serial:
             missing = [
                 line.description or line.product_id.name
                 for line in self.line_ids if not line.serial_number
@@ -161,9 +175,22 @@ class SinWarranty(SinDocxMixin, models.Model):
             'partner.city': partner.city or '',
             'product_lines': line_info or '',
             'date': self.date.strftime('%d/%m/%Y') if self.date else '',
+            'date_day': self.date.strftime('%d') if self.date else '',
+            'date_month': self.date.strftime('%m') if self.date else '',
+            'date_year': self.date.strftime('%Y') if self.date else '',
             'date_expiry': self.date_expiry.strftime('%d/%m/%Y') if self.date_expiry else '-',
             'warranty.days': self._get_effective_warranty_days(),
             'warranty.name': self.name or '',
+            # Datos técnicos del equipo amparado
+            'warranty.brand': self.equipment_brand or '',
+            'warranty.model': self.equipment_model or '',
+            'warranty.serial': self.equipment_serial or '',
+            'warranty.processor': self.equipment_processor or '',
+            'warranty.ram': self.equipment_ram or '',
+            'warranty.storage': self.equipment_storage or '',
+            'warranty.os_version': self.equipment_os_version or '',
+            'warranty.omv_version': self.equipment_omv_version or '',
+            'warranty.odoo_edition': self.equipment_odoo_edition or '',
         }
 
     @staticmethod

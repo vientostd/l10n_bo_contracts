@@ -85,6 +85,30 @@
                             </field>
                         </page>
 
+                        <page string="Equipo Técnico" name="equipment_technical">
+                            <group>
+                                <group>
+                                    <field name="equipment_brand"/>
+                                    <field name="equipment_model"/>
+                                    <field name="equipment_serial"/>
+                                </group>
+                                <group>
+                                    <field name="equipment_processor"/>
+                                    <field name="equipment_ram"/>
+                                    <field name="equipment_storage"/>
+                                </group>
+                            </group>
+                            <group>
+                                <group>
+                                    <field name="equipment_os_version"/>
+                                    <field name="equipment_omv_version"/>
+                                </group>
+                                <group>
+                                    <field name="equipment_odoo_edition"/>
+                                </group>
+                            </group>
+                        </page>
+
                         <page string="Firma" name="signature"
                               invisible="not require_signature or state not in ('generated','sent','signed')">
                             <group string="Firma del cliente">
